@@ -1,9 +1,13 @@
 import dataclasses
 import datetime
+import json
 import typing
 from unittest import mock
 
+import pytest
+
 import dynamizer
+from dynamizer import errors
 
 
 @dataclasses.dataclass(frozen=True)
@@ -114,3 +118,72 @@ def test_demo_class_base_load_without_item():
     record = DemoClass._base_load(client, "my-table-name", "hash-key", "range-key")
 
     assert record is None
+
+
+@dataclasses.dataclass(frozen=True)
+class InnerClass:
+    """An inner class for testing."""
+
+    foo: str
+    bar: str
+
+
+@dataclasses.dataclass(frozen=True)
+class HierarchicalClass(dynamizer.DynamiteModel):
+    """A hierarchical class for testing."""
+
+    foo: str
+    bar: typing.List[InnerClass]
+
+    @property
+    def hash_key(self) -> str:
+        """Get the hash key."""
+        return f"hash-key"
+
+    @property
+    def range_key(self) -> str:
+        """Get the range key."""
+        return "/range-key"
+
+    def _serialize_bar(self) -> typing.Dict[str, typing.Any]:
+        """Serialize the bar value."""
+        return json.dumps([dataclasses.asdict(b) for b in self.bar])
+
+    @classmethod
+    def _deserialize_bar(cls, value: typing.Dict[str, typing.Any]) -> typing.List:
+        """Deserialize the bar value."""
+        return [InnerClass(**b) for b in json.loads(value)]
+
+
+def test_hierarchical_class():
+    """We should be able to serialize and deserialize hierarchical classes."""
+    inner = InnerClass(foo="foo", bar="bar")
+    outer = HierarchicalClass(foo="foo", bar=[inner])
+    client = mock.MagicMock()
+
+    result = HierarchicalClass.inflate(outer.deflate())
+
+    assert result == outer
+
+
+@dataclasses.dataclass(frozen=True)
+class FunnyClass(dynamizer.DynamiteModel):
+    """A class that has unsupported types and doesn't build its own support."""
+
+    funky: mock.MagicMock
+
+
+def test_unsupported_type_encoding_errors():
+    """When we are given an unsupported type to encode we should throw an error."""
+    obj = FunnyClass(mock.MagicMock())
+
+    with pytest.raises(errors.UnsupportedTypeError):
+        obj.deflate()
+
+
+def test_unsupported_type_decoding_errors():
+    """When we are given an unsupported type to encode we should throw an error."""
+    dynamo_format = {"funky": {"S": "magic"}}
+
+    with pytest.raises(errors.UnsupportedTypeError):
+        FunnyClass.inflate(dynamo_format)

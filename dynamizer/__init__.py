@@ -4,6 +4,8 @@ import json
 import re
 import typing
 
+from dynamizer import errors
+
 
 _TYPE_ENCODERS = {
     int: lambda x: {"N": str(x)},
@@ -24,6 +26,30 @@ _TYPE_DECODERS = {
     list: lambda x: json.loads(x["S"]),
     dict: lambda x: json.loads(x["S"]),
 }
+
+
+def _default_encode_value(field: dataclasses.Field, value: typing.Any) -> typing.Any:
+    """Encode a value for dynamodb."""
+    if field.type not in _TYPE_ENCODERS:
+        raise errors.UnsupportedTypeError(
+            f"Unsupported type {field.type} for field {field.name}"
+            " consider defining a custom serializer by adding the following method:"
+            f"`_serialize_{field.name}(self) -> str`"
+        )
+    return _TYPE_ENCODERS[field.type](value)
+
+
+def _default_decode_value(
+    field: dataclasses.Field, value: typing.Dict[str, typing.Any]
+) -> typing.Any:
+    """Decode a value from dynamodb."""
+    if field.type not in _TYPE_DECODERS:
+        raise errors.UnsupportedTypeError(
+            f"Unsupported type {field.type} for field {field.name}"
+            " consider defining a custom deserializer by adding the following method:"
+            f"`_deserialize_{field.name}(self, value: dict) -> {field.type}`"
+        )
+    return _TYPE_DECODERS[field.type](value)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True)
@@ -66,7 +92,7 @@ class DynamiteModel:
                 remove_parts.append(f"#d{i}")
             else:
                 set_parts.append(f"#d{i} = :d{i}")
-                values[f":d{i}"] = _TYPE_ENCODERS[field.type](value)
+                values[f":d{i}"] = self.__serialize_field(field)
 
         fields["#s"] = "_serial"
         values[":s"] = {"N": str(self._serial or 1)}
@@ -122,10 +148,18 @@ class DynamiteModel:
         values = {}
         for field in dataclasses.fields(cls):
             value = dynamo_record.get(field.name)
+            values[field.name] = None
             if value is not None:
-                value = _TYPE_DECODERS[field.type](value)
-                values[field.name] = value
+                values[field.name] = cls.__deserialize_field(field, value)
         return cls(**values)
+
+    def deflate(self) -> dict:
+        """Deflate a record from python class to dynamodb format."""
+        return {
+            field.name: self.__serialize_field(field)
+            for field in dataclasses.fields(self)
+            if getattr(self, field.name) is not None
+        }
 
     def _base_save(self, client, table: str) -> "DynamiteModel":
         """Provide a default save function."""
@@ -185,3 +219,23 @@ class DynamiteModel:
         if "Item" not in response:
             return None
         return cls.inflate(response["Item"])
+
+    def __serialize_field(
+        self, field: dataclasses.Field
+    ) -> typing.Dict[str, typing.Any]:
+        """Serialize a single field, utilizing custom serializers where present."""
+        custom_serializer = getattr(self, f"_serialize_{field.name}", None)
+        if custom_serializer:
+            return custom_serializer()
+        value = getattr(self, field.name)
+        return _default_encode_value(field, value)
+
+    @classmethod
+    def __deserialize_field(
+        cls, field: dataclasses.Field, value: typing.Dict[str, typing.Any]
+    ) -> typing.Any:
+        """Deserialize a single field, utilizing custom deserializers where present."""
+        custom_deserializer = getattr(cls, f"_deserialize_{field.name}", None)
+        if custom_deserializer:
+            return custom_deserializer(value)
+        return _default_decode_value(field, value)
