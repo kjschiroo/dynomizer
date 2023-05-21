@@ -37,7 +37,7 @@ def test_demo_class_save_new():
     demo = DemoClass("my-string")
     client = mock.MagicMock()
 
-    result = demo._default_save(client, "my-table-name")
+    result = demo._base_save(client, "my-table-name")
 
     assert result.created_at is not None
     assert result.updated_at is not None
@@ -49,7 +49,7 @@ def test_demo_class_save_old():
     demo = DemoClass("my-string", barfoo=None, _serial=1)
     client = mock.MagicMock()
 
-    result = demo._default_save(client, "my-table-name")
+    result = demo._base_save(client, "my-table-name")
 
     assert result.created_at is not None
     assert result.updated_at is not None
@@ -62,7 +62,7 @@ def test_demo_class_delete():
     demo = DemoClass("my-string")
     client = mock.MagicMock()
 
-    demo._default_delete(client, "my-table-name")
+    demo._base_delete(client, "my-table-name")
 
     client.delete_item.assert_called_once()
 
@@ -85,7 +85,7 @@ def test_demo_class_inflate():
     assert record == expected
 
 
-def test_demo_class_default_load_with_item():
+def test_demo_class_base_load_with_item():
     """We should be able to use the default loader to pull a record."""
     client = mock.MagicMock()
     client.get_item.return_value = {
@@ -96,7 +96,7 @@ def test_demo_class_default_load_with_item():
         }
     }
 
-    record = DemoClass._default_load(client, "my-table-name", "hash-key", "range-key")
+    record = DemoClass._base_load(client, "my-table-name", "hash-key", "range-key")
 
     expected = DemoClass(
         "fizuzz",
@@ -106,11 +106,11 @@ def test_demo_class_default_load_with_item():
     assert record == expected
 
 
-def test_demo_class_default_load_without_item():
+def test_demo_class_base_load_without_item():
     """We should be able to use the default loader to pull a record."""
     client = mock.MagicMock()
     client.get_item.return_value = {}
 
-    record = DemoClass._default_load(client, "my-table-name", "hash-key", "range-key")
+    record = DemoClass._base_load(client, "my-table-name", "hash-key", "range-key")
 
     assert record is None

@@ -90,8 +90,8 @@ class DynamiteModel:
                 values[f":k{i}"] = keys[key]
         return (remove_parts, values, fields)
 
-    def __standard_update_args(self):
-        """Get the standard update args for dynamo."""
+    def __base_update_args(self):
+        """Get the base update args for dynamo."""
         (sets, removes, values, fields) = self.__get_field_update_args()
         (rms, vls, flds) = self.__get_secondary_key_update_args()
         removes.extend(rms)
@@ -127,7 +127,7 @@ class DynamiteModel:
                 values[field.name] = value
         return cls(**values)
 
-    def _default_save(self, client, table: str) -> "DynamiteModel":
+    def _base_save(self, client, table: str) -> "DynamiteModel":
         """Provide a default save function."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         to_save = dataclasses.replace(self, updated_at=now_utc)
@@ -143,14 +143,14 @@ class DynamiteModel:
                     )
                 },
             },
-            **to_save.__standard_update_args(),
+            **to_save.__base_update_args(),
         )
         return dataclasses.replace(
             to_save,
             _serial=(to_save._serial or 0) + 1,
         )
 
-    def _default_delete(
+    def _base_delete(
         self,
         client,
         table: str,
@@ -174,7 +174,7 @@ class DynamiteModel:
         )
 
     @classmethod
-    def _default_load(
+    def _base_load(
         cls, client, table: str, hash_key: str, range_key: str
     ) -> typing.Optional["DynamiteModel"]:
         """Default load function given a specific hash and range key."""
