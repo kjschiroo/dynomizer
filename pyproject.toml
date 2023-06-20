@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dynamizer"
-version = "0.1.1"
+version = "0.1.2"
 description = "Dynamodb model maker."
 authors = ["Kevin Schiroo <kjschiroo@gmail.com>"]
 license = "MIT"
@@ -8,10 +8,15 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.10"
 
+moto = {version = "^4.1.11", extras = ["dynamodb"], optional = true}
+
 [tool.poetry.dev-dependencies]
 pytest = "^7.3.1"
 pytest-cov = "^4.0.0"
 taskipy = "^1.10.4"
+
+[tool.poetry.extras]
+mock = ["moto"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

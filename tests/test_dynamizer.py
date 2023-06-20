@@ -135,16 +135,6 @@ class HierarchicalClass(dynamizer.DynamiteModel):
     foo: str
     bar: typing.List[InnerClass]
 
-    @property
-    def hash_key(self) -> str:
-        """Get the hash key."""
-        return f"hash-key"
-
-    @property
-    def range_key(self) -> str:
-        """Get the range key."""
-        return "/range-key"
-
     def _serialize_bar(self) -> typing.Dict[str, typing.Any]:
         """Serialize the bar value."""
         return json.dumps([dataclasses.asdict(b) for b in self.bar])
@@ -159,7 +149,6 @@ def test_hierarchical_class():
     """We should be able to serialize and deserialize hierarchical classes."""
     inner = InnerClass(foo="foo", bar="bar")
     outer = HierarchicalClass(foo="foo", bar=[inner])
-    client = mock.MagicMock()
 
     result = HierarchicalClass.inflate(outer.deflate())
 

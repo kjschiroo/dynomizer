@@ -118,3 +118,33 @@ class DemoClass(dynamizer.DynamiteModel):
         self._base_delete(client, "table_to_delete_from")
 ```
 
+## Mocking
+
+Dynamizer provides a mechanism for mocking out dynamodb calls for testing. The
+initial state of dynamodb can be set via yaml files.
+
+```python
+import dynamizer.mock
+
+data = yaml.safe_load("/path/to/data.yaml")
+
+with dynamizer.mock.from_yaml(data):
+    # Within this context dynamodb will have the state defined in data.yaml
+```
+
+The expected format of the yaml file is:
+
+```yaml
+- table_name: my-table-name
+  region: us-east-1 # Optional
+  secondary_indexes: # Optional
+    - name: gs1-gs2
+      hash_key: gs1
+      range_key: gs2
+  objects:
+    MyDynamizerSubCls:
+      - foo: {S: bar}
+        fiz: {S: buzz}
+    AnotherDynamizerSubCls:
+      - mock: {S: data}
+```
