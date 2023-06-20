@@ -19,6 +19,22 @@ def _create_tables(data: list):
         }
         attrs.add("hash_key")
         attrs.add("range_key")
+        gsis = [
+            {
+                "IndexName": index["name"],
+                "KeySchema": [
+                    {"AttributeName": key, "KeyType": type_}
+                    for key, type_ in [
+                        (index.get("hash_key"), "HASH"),
+                        (index.get("range_key"), "RANGE"),
+                    ]
+                    if key
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            }
+            for index in table_data.get("secondary_indexes", [])
+        ]
+        gsi_args = {"GlobalSecondaryIndexes": gsis} if gsis else {}
         client.create_table(
             TableName=table_data["table_name"],
             AttributeDefinitions=[
@@ -28,22 +44,8 @@ def _create_tables(data: list):
                 {"AttributeName": "hash_key", "KeyType": "HASH"},
                 {"AttributeName": "range_key", "KeyType": "RANGE"},
             ],
-            GlobalSecondaryIndexes=[
-                {
-                    "IndexName": index["name"],
-                    "KeySchema": [
-                        {"AttributeName": key, "KeyType": type_}
-                        for key, type_ in [
-                            (index.get("hash_key"), "HASH"),
-                            (index.get("range_key"), "RANGE"),
-                        ]
-                        if key
-                    ],
-                    "Projection": {"ProjectionType": "ALL"},
-                }
-                for index in table_data.get("secondary_indexes", [])
-            ],
             BillingMode="PAY_PER_REQUEST",
+            **gsi_args,
         )
 
 
