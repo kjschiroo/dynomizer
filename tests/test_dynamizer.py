@@ -16,6 +16,7 @@ class DemoClass(dynamizer.DynamiteModel):
 
     foobar: str
     barfoo: typing.Optional[str] = None
+    some_int: typing.Optional[int] = None
 
     @property
     def hash_key(self) -> str:
@@ -34,6 +35,15 @@ class DemoClass(dynamizer.DynamiteModel):
     def _gs2(self) -> str:
         """Get the gs2 value."""
         return None
+
+
+def test_optional_but_set_values():
+    """Optional values that are set should be tolerated without error."""
+    demo = DemoClass("my-string", barfoo="my-other-string", some_int=1)
+
+    result = DemoClass.inflate(demo.deflate())
+
+    assert demo == result
 
 
 def test_demo_class_save_new():

@@ -28,28 +28,38 @@ _TYPE_DECODERS = {
 }
 
 
+def _find_coder(field: dataclasses.Field, coders: dict) -> typing.Optional[typing.Callable]:
+    """Find an encoder for the type of the given field."""
+    if field.type in coders:
+        return coders[field.type]
+    base_type = typing.get_origin(field.type)
+    if base_type is typing.Union and type(None) in typing.get_args(field.type):
+        return coders[typing.get_args(field.type)[0]]
+    return None
+
+
 def _default_encode_value(field: dataclasses.Field, value: typing.Any) -> typing.Any:
     """Encode a value for dynamodb."""
-    if field.type not in _TYPE_ENCODERS:
-        raise errors.UnsupportedTypeError(
-            f"Unsupported type {field.type} for field {field.name}"
-            " consider defining a custom serializer by adding the following method:"
-            f"`_serialize_{field.name}(self) -> str`"
-        )
-    return _TYPE_ENCODERS[field.type](value)
+    if encoder := _find_coder(field, _TYPE_ENCODERS):
+        return encoder(value)
+    raise errors.UnsupportedTypeError(
+        f"Unsupported type {field.type} for field {field.name}"
+        " consider defining a custom serializer by adding the following method:"
+        f"`_serialize_{field.name}(self) -> str`"
+    )
 
 
 def _default_decode_value(
     field: dataclasses.Field, value: typing.Dict[str, typing.Any]
 ) -> typing.Any:
     """Decode a value from dynamodb."""
-    if field.type not in _TYPE_DECODERS:
-        raise errors.UnsupportedTypeError(
-            f"Unsupported type {field.type} for field {field.name}"
-            " consider defining a custom deserializer by adding the following method:"
-            f"`_deserialize_{field.name}(self, value: dict) -> {field.type}`"
-        )
-    return _TYPE_DECODERS[field.type](value)
+    if decoder := _find_coder(field, _TYPE_DECODERS):
+        return decoder(value)
+    raise errors.UnsupportedTypeError(
+        f"Unsupported type {field.type} for field {field.name}"
+        " consider defining a custom deserializer by adding the following method:"
+        f"`_deserialize_{field.name}(self, value: dict) -> {field.type}`"
+    )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True)
