@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import json
+import random
 import re
 import typing
 
@@ -105,7 +106,11 @@ class DynamiteModel:
                 values[f":d{i}"] = self.__serialize_field(field)
 
         fields["#s"] = "_serial"
-        values[":s"] = {"N": str(self._serial or 1)}
+        if self._serial:
+            values[":s"] = {"N": str(self._serial)}
+        values[":ns"] = {"N": str(random.randint(1, 1_000_000_000_000))}
+        set_parts.append("#s = :ns")
+
         fields["#c"] = "created_at"
         values[":c"] = {"S": self.created_at.isoformat()}
 
@@ -140,11 +145,7 @@ class DynamiteModel:
             update_expression = f'{update_expression}REMOVE {", ".join(removes)}'
         update_expression = f'{update_expression} SET {", ".join(sets)}'
         if self._serial:
-            values[":inc"] = {"N": "1"}
-            update_expression = f"{update_expression} ADD #s :inc"
             conditional_expression = "#s = :s"
-        else:
-            update_expression = f"{update_expression}, #s = :s"
         return {
             "UpdateExpression": update_expression,
             "ConditionExpression": conditional_expression,
@@ -175,7 +176,7 @@ class DynamiteModel:
         """Provide a default save function."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         to_save = dataclasses.replace(self, updated_at=now_utc)
-        client.update_item(
+        response = client.update_item(
             TableName=table,
             Key={
                 "hash_key": {
@@ -187,11 +188,12 @@ class DynamiteModel:
                     )
                 },
             },
+            ReturnValues="UPDATED_NEW",
             **to_save.__base_update_args(),
         )
         return dataclasses.replace(
             to_save,
-            _serial=(to_save._serial or 0) + 1,
+            _serial=int(response["Attributes"]["_serial"]["N"]),
         )
 
     def _base_delete(
@@ -213,7 +215,7 @@ class DynamiteModel:
                 },
             },
             ConditionExpression="#s = :s",
-            ExpressionAttributeNames={"#s": "serial"},
+            ExpressionAttributeNames={"#s": "_serial"},
             ExpressionAttributeValues={":s": {"N": self._serial}},
         )
 

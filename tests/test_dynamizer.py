@@ -55,19 +55,22 @@ def test_demo_class_save_new():
 
     assert result.created_at is not None
     assert result.updated_at is not None
-    assert result._serial == 1
+    assert result._serial > 0
 
 
 def test_demo_class_save_old():
     """Old records should be able to be saved, resulting in a serial increment."""
     demo = DemoClass("my-string", barfoo=None, _serial=1)
     client = mock.MagicMock()
+    client.update_item.return_value = {
+        "Attributes": {"_serial": {"N": "12345"}}
+    }
 
     result = demo._base_save(client, "my-table-name")
 
     assert result.created_at is not None
     assert result.updated_at is not None
-    assert result._serial == 2
+    assert result._serial == 12345
     assert result.barfoo is None
 
 

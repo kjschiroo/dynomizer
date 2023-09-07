@@ -90,4 +90,7 @@ def test_from_yaml():
 
         new_obj = DemoClass("new-string")
         new_obj.save()
-        assert DemoClass.load("new-string") is not None
+        loaded = DemoClass.load("new-string")
+        assert loaded is not None
+        resaved = loaded.save()
+        assert len({new_obj._serial, loaded._serial, resaved._serial}) == 3
