@@ -72,7 +72,7 @@ def test_from_yaml():
         ],
         "objects": {
             "DemoClass": [
-                {"foobar": {"S": "my-string"}},
+                {"foobar": {"S": "my-string"}, "_serial": {"N": "1234"}},
             ],
         },
     }

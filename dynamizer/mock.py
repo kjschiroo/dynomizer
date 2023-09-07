@@ -60,6 +60,7 @@ def _fill_table(table_data: dict):
             obj._base_save(
                 boto3.client("dynamodb", region_name=table_data.get("region")),
                 table,
+                force=True,
             )
 
 

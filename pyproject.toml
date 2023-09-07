@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dynamizer"
-version = "0.2.1"
+version = "0.2.2"
 description = "Dynamodb model maker."
 authors = ["Kevin Schiroo <kjschiroo@gmail.com>"]
 license = "MIT"

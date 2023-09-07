@@ -131,7 +131,7 @@ class DynamiteModel:
                 values[f":k{i}"] = keys[key]
         return (remove_parts, values, fields)
 
-    def __base_update_args(self):
+    def __base_update_args(self, force: bool):
         """Get the base update args for dynamo."""
         (sets, removes, values, fields) = self.__get_field_update_args()
         (rms, vls, flds) = self.__get_secondary_key_update_args()
@@ -146,12 +146,13 @@ class DynamiteModel:
         update_expression = f'{update_expression} SET {", ".join(sets)}'
         if self._serial:
             conditional_expression = "#s = :s"
-        return {
+        result = {
             "UpdateExpression": update_expression,
-            "ConditionExpression": conditional_expression,
+            "ConditionExpression": conditional_expression if not force else None,
             "ExpressionAttributeValues": values,
             "ExpressionAttributeNames": fields,
         }
+        return {k: v for k, v in result.items() if v is not None}
 
     @classmethod
     def inflate(cls, dynamo_record: dict) -> "DynamiteModel":
@@ -172,7 +173,7 @@ class DynamiteModel:
             if getattr(self, field.name) is not None
         }
 
-    def _base_save(self, client, table: str) -> "DynamiteModel":
+    def _base_save(self, client, table: str, force: bool = False) -> "DynamiteModel":
         """Provide a default save function."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         to_save = dataclasses.replace(self, updated_at=now_utc)
@@ -189,7 +190,7 @@ class DynamiteModel:
                 },
             },
             ReturnValues="UPDATED_NEW",
-            **to_save.__base_update_args(),
+            **to_save.__base_update_args(force),
         )
         return dataclasses.replace(
             to_save,
