@@ -214,3 +214,29 @@ def test_base_save_transforms_conditional_errors():
 
     with pytest.raises(errors.ConcurrentUpdateError):
         demo._base_save(client, "my-table-name")
+
+
+def test_base_delete_reraises_client_errors():
+    """When the client raises an error we should reraise it."""
+    demo = DemoClass("my-string")
+    client = mock.MagicMock()
+    response = {"Error": {"Code": "UnhandledException"}}
+    client.delete_item.side_effect = botocore.exceptions.ClientError(
+        response, "delete_item"
+    )
+
+    with pytest.raises(botocore.exceptions.ClientError):
+        demo._base_delete(client, "my-table-name")
+
+
+def test_base_delete_transforms_conditional_errors():
+    """When the client raises an error we should reraise it."""
+    demo = DemoClass("my-string")
+    client = mock.MagicMock()
+    response = {"Error": {"Code": "ConditionalCheckFailedException"}}
+    client.delete_item.side_effect = botocore.exceptions.ClientError(
+        response, "delete_item"
+    )
+
+    with pytest.raises(errors.ConcurrentUpdateError):
+        demo._base_delete(client, "my-table-name")

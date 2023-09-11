@@ -31,7 +31,9 @@ _TYPE_DECODERS = {
 }
 
 
-def _find_coder(field: dataclasses.Field, coders: dict) -> typing.Optional[typing.Callable]:
+def _find_coder(
+    field: dataclasses.Field, coders: dict
+) -> typing.Optional[typing.Callable]:
     """Find an encoder for the type of the given field."""
     if field.type in coders:
         return coders[field.type]
@@ -184,11 +186,17 @@ class DynamiteModel:
                 TableName=table,
                 Key={
                     "hash_key": {
-                        "S": (self.hash_key() if callable(self.hash_key) else self.hash_key)
+                        "S": (
+                            self.hash_key()
+                            if callable(self.hash_key)
+                            else self.hash_key
+                        )
                     },
                     "range_key": {
                         "S": (
-                            self.range_key() if callable(self.range_key) else self.range_key
+                            self.range_key()
+                            if callable(self.range_key)
+                            else self.range_key
                         )
                     },
                 },
@@ -210,22 +218,33 @@ class DynamiteModel:
         table: str,
     ):
         """Delete the record."""
-        client.delete_item(
-            TableName=table,
-            Key={
-                "hash_key": {
-                    "S": (self.hash_key() if callable(self.hash_key) else self.hash_key)
+        try:
+            client.delete_item(
+                TableName=table,
+                Key={
+                    "hash_key": {
+                        "S": (
+                            self.hash_key()
+                            if callable(self.hash_key)
+                            else self.hash_key
+                        )
+                    },
+                    "range_key": {
+                        "S": (
+                            self.range_key()
+                            if callable(self.range_key)
+                            else self.range_key
+                        )
+                    },
                 },
-                "range_key": {
-                    "S": (
-                        self.range_key() if callable(self.range_key) else self.range_key
-                    )
-                },
-            },
-            ConditionExpression="#s = :s",
-            ExpressionAttributeNames={"#s": "_serial"},
-            ExpressionAttributeValues={":s": {"N": self._serial}},
-        )
+                ConditionExpression="#s = :s",
+                ExpressionAttributeNames={"#s": "_serial"},
+                ExpressionAttributeValues={":s": {"N": self._serial}},
+            )
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                raise errors.ConcurrentUpdateError()
+            raise err
 
     @classmethod
     def _base_load(
