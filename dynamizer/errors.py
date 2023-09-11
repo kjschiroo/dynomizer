@@ -4,3 +4,7 @@ class DynomizerError(Exception):
 
 class UnsupportedTypeError(DynomizerError):
     pass
+
+
+class ConcurrentUpdateError(DynomizerError):
+    """The model changed since reading."""

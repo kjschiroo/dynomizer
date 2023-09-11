@@ -4,6 +4,7 @@ import json
 import typing
 from unittest import mock
 
+import botocore.exceptions
 import pytest
 
 import dynamizer
@@ -62,9 +63,7 @@ def test_demo_class_save_old():
     """Old records should be able to be saved, resulting in a serial increment."""
     demo = DemoClass("my-string", barfoo=None, _serial=1)
     client = mock.MagicMock()
-    client.update_item.return_value = {
-        "Attributes": {"_serial": {"N": "12345"}}
-    }
+    client.update_item.return_value = {"Attributes": {"_serial": {"N": "12345"}}}
 
     result = demo._base_save(client, "my-table-name")
 
@@ -189,3 +188,29 @@ def test_unsupported_type_decoding_errors():
 
     with pytest.raises(errors.UnsupportedTypeError):
         FunnyClass.inflate(dynamo_format)
+
+
+def test_base_save_reraises_client_errors():
+    """When the client raises an error we should reraise it."""
+    demo = DemoClass("my-string")
+    client = mock.MagicMock()
+    response = {"Error": {"Code": "UnhandledException"}}
+    client.update_item.side_effect = botocore.exceptions.ClientError(
+        response, "update_item"
+    )
+
+    with pytest.raises(botocore.exceptions.ClientError):
+        demo._base_save(client, "my-table-name")
+
+
+def test_base_save_transforms_conditional_errors():
+    """When the client raises an error we should reraise it."""
+    demo = DemoClass("my-string")
+    client = mock.MagicMock()
+    response = {"Error": {"Code": "ConditionalCheckFailedException"}}
+    client.update_item.side_effect = botocore.exceptions.ClientError(
+        response, "update_item"
+    )
+
+    with pytest.raises(errors.ConcurrentUpdateError):
+        demo._base_save(client, "my-table-name")

@@ -5,6 +5,8 @@ import random
 import re
 import typing
 
+import botocore.exceptions
+
 from dynamizer import errors
 
 
@@ -177,21 +179,26 @@ class DynamiteModel:
         """Provide a default save function."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         to_save = dataclasses.replace(self, updated_at=now_utc)
-        response = client.update_item(
-            TableName=table,
-            Key={
-                "hash_key": {
-                    "S": (self.hash_key() if callable(self.hash_key) else self.hash_key)
+        try:
+            response = client.update_item(
+                TableName=table,
+                Key={
+                    "hash_key": {
+                        "S": (self.hash_key() if callable(self.hash_key) else self.hash_key)
+                    },
+                    "range_key": {
+                        "S": (
+                            self.range_key() if callable(self.range_key) else self.range_key
+                        )
+                    },
                 },
-                "range_key": {
-                    "S": (
-                        self.range_key() if callable(self.range_key) else self.range_key
-                    )
-                },
-            },
-            ReturnValues="UPDATED_NEW",
-            **to_save.__base_update_args(force),
-        )
+                ReturnValues="UPDATED_NEW",
+                **to_save.__base_update_args(force),
+            )
+        except botocore.exceptions.ClientError as err:
+            if err.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                raise errors.ConcurrentUpdateError()
+            raise err
         return dataclasses.replace(
             to_save,
             _serial=int(response["Attributes"]["_serial"]["N"]),

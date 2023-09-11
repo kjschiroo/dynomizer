@@ -6,6 +6,7 @@ import boto3
 import botocore
 
 import dynamizer
+from dynamizer import errors
 from dynamizer import mock as dynamizer_mock
 
 
@@ -82,7 +83,7 @@ def test_from_yaml():
         assert obj is not None
 
         obj.save()
-        with pytest.raises(botocore.exceptions.ClientError):
+        with pytest.raises(errors.ConcurrentUpdateError):
             obj.save()
 
         not_obj = DemoClass.load("not-valid")
