@@ -73,7 +73,7 @@ class DynamiteModel:
 
     created_at: datetime.datetime = None
     updated_at: datetime.datetime = None
-    _serial: int = None
+    _serial: int = dataclasses.field(compare=False, default=None)
 
     def __post_init__(self):
         now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -176,6 +176,16 @@ class DynamiteModel:
             for field in dataclasses.fields(self)
             if getattr(self, field.name) is not None
         }
+
+    def continue_from(self, prev: "DynamiteModel") -> "DynamiteModel":
+        """
+        Allow the model to continue from a previous state specified by `prev`.
+
+        Dynamite models have a token to prevent writing over a previous update.
+        If it is desired to start from a fresh model and overwrite existing state,
+        then this can be used to enable it without requiring forcing.
+        """
+        return dataclasses.replace(self, _serial=prev._serial)
 
     def _base_save(self, client, table: str, force: bool = False) -> "DynamiteModel":
         """Provide a default save function."""

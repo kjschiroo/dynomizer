@@ -240,3 +240,15 @@ def test_base_delete_transforms_conditional_errors():
 
     with pytest.raises(errors.ConcurrentUpdateError):
         demo._base_delete(client, "my-table-name")
+
+
+def test_continue_from():
+    """We should be able to continue from a previous state."""
+    demo1 = DemoClass("my-string")
+    demo2 = DemoClass("my-string", _serial=42)
+
+    result = demo1.continue_from(demo2)
+
+    assert demo1._serial != demo2._serial
+    assert result._serial == demo2._serial
+    assert result == demo1
