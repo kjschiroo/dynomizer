@@ -135,7 +135,7 @@ class DynamiteModel:
                 values[f":k{i}"] = keys[key]
         return (remove_parts, values, fields)
 
-    def __base_update_args(self, force: bool):
+    def _base_update_args(self, table: str, force: bool):
         """Get the base update args for dynamo."""
         (sets, removes, values, fields) = self.__get_field_update_args()
         (rms, vls, flds) = self.__get_secondary_key_update_args()
@@ -151,10 +151,13 @@ class DynamiteModel:
         if self._serial:
             conditional_expression = "#s = :s"
         result = {
+            "TableName": table,
+            "Key": self.__base_update_key_args(),
             "UpdateExpression": update_expression,
             "ConditionExpression": conditional_expression if not force else None,
             "ExpressionAttributeValues": values,
             "ExpressionAttributeNames": fields,
+            "ReturnValues": "UPDATED_NEW",
         }
         return {k: v for k, v in result.items() if v is not None}
 
@@ -187,32 +190,23 @@ class DynamiteModel:
         """
         return dataclasses.replace(self, _serial=prev._serial)
 
+    def __base_update_key_args(self) -> dict:
+        """Generate the key argument for a dynamo update operation."""
+        return {
+            "hash_key": {
+                "S": (self.hash_key() if callable(self.hash_key) else self.hash_key)
+            },
+            "range_key": {
+                "S": (self.range_key() if callable(self.range_key) else self.range_key)
+            },
+        }
+
     def _base_save(self, client, table: str, force: bool = False) -> "DynamiteModel":
         """Provide a default save function."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         to_save = dataclasses.replace(self, updated_at=now_utc)
         try:
-            response = client.update_item(
-                TableName=table,
-                Key={
-                    "hash_key": {
-                        "S": (
-                            self.hash_key()
-                            if callable(self.hash_key)
-                            else self.hash_key
-                        )
-                    },
-                    "range_key": {
-                        "S": (
-                            self.range_key()
-                            if callable(self.range_key)
-                            else self.range_key
-                        )
-                    },
-                },
-                ReturnValues="UPDATED_NEW",
-                **to_save.__base_update_args(force),
-            )
+            response = client.update_item(**to_save._base_update_args(table, force))
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "ConditionalCheckFailedException":
                 raise errors.ConcurrentUpdateError()
