@@ -90,8 +90,13 @@ class DynamiteModel:
             if re.match(r"^_?gs\d+$", v)
         }
 
-    def __get_field_update_args(self):
-        """Get the update args associated with fields."""
+    def __get_field_update_args(self, new_serial: int = None):
+        """
+        Get the update args associated with fields.
+
+        :param new_serial:
+            The new serial to use, if not provided, one will be randomly generated.
+        """
         exclude = {"created_at", "_serial"}
         set_parts = ["#c = if_not_exists(#c, :c)"]
         remove_parts = []
@@ -112,7 +117,7 @@ class DynamiteModel:
         fields["#s"] = "_serial"
         if self._serial:
             values[":s"] = {"N": str(self._serial)}
-        values[":ns"] = {"N": str(random.randint(1, 1_000_000_000_000))}
+        values[":ns"] = {"N": str(new_serial or random.randint(1, 1_000_000_000_000))}
         set_parts.append("#s = :ns")
 
         fields["#c"] = "created_at"
@@ -135,9 +140,20 @@ class DynamiteModel:
                 values[f":k{i}"] = keys[key]
         return (remove_parts, values, fields)
 
-    def _base_update_args(self, table: str, force: bool):
-        """Get the base update args for dynamo."""
-        (sets, removes, values, fields) = self.__get_field_update_args()
+    def _base_update_args(
+        self, table: str, force: bool = False, new_serial: int = None
+    ):
+        """
+        Get the base update args for dynamo.
+
+        :param table:
+            The dynamodb table the update is targeting.
+        :param force:
+            Whether to force the update, ignoring the serial token.
+        :param new_serial:
+            The new serial to use, if not provided, one will be randomly generated.
+        """
+        (sets, removes, values, fields) = self.__get_field_update_args(new_serial)
         (rms, vls, flds) = self.__get_secondary_key_update_args()
         removes.extend(rms)
         values.update(vls)
