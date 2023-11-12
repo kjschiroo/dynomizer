@@ -90,6 +90,13 @@ class DynamiteModel:
             if re.match(r"^_?gs\d+$", v)
         }
 
+    @classmethod
+    @property
+    def __managed_fields(cls) -> typing.List[dataclasses.Field]:
+        """Get the fields of the model."""
+        hidden = f"_{cls.__name__}__"
+        return [f for f in dataclasses.fields(cls) if not f.name.startswith(hidden)]
+
     def __get_field_update_args(self, new_serial: int = None):
         """
         Get the update args associated with fields.
@@ -103,7 +110,7 @@ class DynamiteModel:
         values = {}
         fields = {}
 
-        for i, field in enumerate(dataclasses.fields(self)):
+        for i, field in enumerate(self.__managed_fields):
             if field.name in exclude:
                 continue
             value = getattr(self, field.name)
@@ -181,7 +188,7 @@ class DynamiteModel:
     def inflate(cls, dynamo_record: dict) -> "DynamiteModel":
         """Inflate a record from dynamodb format to a python class."""
         values = {}
-        for field in dataclasses.fields(cls):
+        for field in cls.__managed_fields:
             value = dynamo_record.get(field.name)
             values[field.name] = None
             if value is not None:
@@ -192,7 +199,7 @@ class DynamiteModel:
         """Deflate a record from python class to dynamodb format."""
         return {
             field.name: self.__serialize_field(field)
-            for field in dataclasses.fields(self)
+            for field in self.__managed_fields
             if getattr(self, field.name) is not None
         }
 
