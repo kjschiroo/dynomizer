@@ -9,8 +9,26 @@ from tests import _utils
 
 
 @dataclasses.dataclass(frozen=True)
+class SpecialString:
+    """A special string."""
+
+    value: str
+
+
+@dataclasses.dataclass(frozen=True)
 class DemoClass(dynamizer.DynamiteModel):
     """A demo class for dynamite."""
+
+    _private: SpecialString = None
+
+    def _serialize_private(self) -> dict:
+        """Serialize the private value."""
+        return {"S": self._private.value}
+
+    @classmethod
+    def _deserialize_private(cls, value: dict) -> dict:
+        """Deserialize the private value."""
+        return SpecialString(value["S"])
 
     @property
     def hash_key(self) -> str:
@@ -46,7 +64,7 @@ DYNAMO_SPEC = {"region": "us-east-1", "table_name": "my-table-name"}
 @dynamizer_mock.from_yaml(DYNAMO_SPEC)
 def test_defined_serial_value():
     """Should be able to define the serial value."""
-    demo = DemoClass()
+    demo = DemoClass(SpecialString("my-string"))
 
     save_result = demo.save(serial=1234)
     load_result = demo.load()

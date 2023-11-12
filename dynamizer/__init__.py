@@ -290,7 +290,8 @@ class DynamiteModel:
         self, field: dataclasses.Field
     ) -> typing.Dict[str, typing.Any]:
         """Serialize a single field, utilizing custom serializers where present."""
-        custom_serializer = getattr(self, f"_serialize_{field.name}", None)
+        name = field.name.lstrip("_")
+        custom_serializer = getattr(self, f"_serialize_{name}", None)
         if custom_serializer:
             return custom_serializer()
         value = getattr(self, field.name)
@@ -301,7 +302,8 @@ class DynamiteModel:
         cls, field: dataclasses.Field, value: typing.Dict[str, typing.Any]
     ) -> typing.Any:
         """Deserialize a single field, utilizing custom deserializers where present."""
-        custom_deserializer = getattr(cls, f"_deserialize_{field.name}", None)
+        name = field.name.lstrip("_")
+        custom_deserializer = getattr(cls, f"_deserialize_{name}", None)
         if custom_deserializer:
             return custom_deserializer(value)
         return _default_decode_value(field, value)
