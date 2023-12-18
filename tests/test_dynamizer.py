@@ -63,13 +63,16 @@ def test_demo_class_save_old():
     """Old records should be able to be saved, resulting in a serial increment."""
     demo = DemoClass("my-string", barfoo=None, _serial=1)
     client = mock.MagicMock()
-    client.update_item.return_value = {"Attributes": {"_serial": {"N": "12345"}}}
+    client.update_item.return_value = {
+        "Attributes": {"_serial": {"N": "12345"}, "_sequence": {"N": "42"}}
+    }
 
     result = demo._base_save(client, "my-table-name")
 
     assert result.created_at is not None
     assert result.updated_at is not None
     assert result._serial == 12345
+    assert result._sequence == 42
     assert result.barfoo is None
 
 
@@ -109,6 +112,7 @@ def test_demo_class_base_load_with_item():
             "foobar": {"S": "fizuzz"},
             "created_at": {"S": "2022-06-28T03:08:00+00:00"},
             "updated_at": {"S": "2023-06-28T03:08:00+00:00"},
+            "_sequence": {"N": "42"},
         }
     }
 
@@ -120,6 +124,7 @@ def test_demo_class_base_load_with_item():
         updated_at=datetime.datetime(2023, 6, 28, 3, 8, tzinfo=datetime.timezone.utc),
     )
     assert record == expected
+    assert record._sequence == 42
 
 
 def test_demo_class_base_load_without_item():

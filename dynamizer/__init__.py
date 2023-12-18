@@ -74,6 +74,7 @@ class DynamiteModel:
     created_at: datetime.datetime = None
     updated_at: datetime.datetime = None
     _serial: int = dataclasses.field(compare=False, default=None)
+    _sequence: int = dataclasses.field(compare=False, default=None)
 
     def __post_init__(self):
         now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -104,11 +105,23 @@ class DynamiteModel:
         :param new_serial:
             The new serial to use, if not provided, one will be randomly generated.
         """
-        exclude = {"created_at", "_serial"}
-        set_parts = ["#c = if_not_exists(#c, :c)"]
+        exclude = {"created_at", "_serial", "_sequence"}
+        set_parts = ["#c = :c", "#s = :ns"]
+        add_parts = ["#seq :inc"]
         remove_parts = []
-        values = {}
-        fields = {}
+        values = {
+            ":inc": {"N": "1"},
+            ":c": {"S": self.created_at.isoformat()},
+            ":ns": {"N": str(new_serial or random.randint(1, 1_000_000_000_000))},
+        }
+        fields = {
+            "#s": "_serial",
+            "#seq": "_sequence",
+            "#c": "created_at",
+        }
+        if self._sequence is None:
+            add_parts = []
+            set_parts.append("#seq = :inc")
 
         for i, field in enumerate(self.__managed_fields):
             if field.name in exclude:
@@ -121,16 +134,10 @@ class DynamiteModel:
                 set_parts.append(f"#d{i} = :d{i}")
                 values[f":d{i}"] = self.__serialize_field(field)
 
-        fields["#s"] = "_serial"
         if self._serial:
             values[":s"] = {"N": str(self._serial)}
-        values[":ns"] = {"N": str(new_serial or random.randint(1, 1_000_000_000_000))}
-        set_parts.append("#s = :ns")
 
-        fields["#c"] = "created_at"
-        values[":c"] = {"S": self.created_at.isoformat()}
-
-        return (set_parts, remove_parts, values, fields)
+        return (add_parts, set_parts, remove_parts, values, fields)
 
     def __get_secondary_key_update_args(self):
         """Get the update args associated with index keys."""
@@ -160,7 +167,7 @@ class DynamiteModel:
         :param new_serial:
             The new serial to use, if not provided, one will be randomly generated.
         """
-        (sets, removes, values, fields) = self.__get_field_update_args(new_serial)
+        (adds, sets, removes, values, fields) = self.__get_field_update_args(new_serial)
         (rms, vls, flds) = self.__get_secondary_key_update_args()
         removes.extend(rms)
         values.update(vls)
@@ -168,8 +175,10 @@ class DynamiteModel:
 
         conditional_expression = "attribute_not_exists(#s)"
         update_expression = ""
+        if adds:
+            update_expression = f'{update_expression} ADD {", ".join(adds)}'
         if removes:
-            update_expression = f'{update_expression}REMOVE {", ".join(removes)}'
+            update_expression = f'{update_expression} REMOVE {", ".join(removes)}'
         update_expression = f'{update_expression} SET {", ".join(sets)}'
         if self._serial:
             conditional_expression = "#s = :s"
@@ -211,7 +220,7 @@ class DynamiteModel:
         If it is desired to start from a fresh model and overwrite existing state,
         then this can be used to enable it without requiring forcing.
         """
-        return dataclasses.replace(self, _serial=prev._serial)
+        return dataclasses.replace(self, _serial=prev._serial, _sequence=prev._sequence)
 
     def __base_update_key_args(self) -> dict:
         """Generate the key argument for a dynamo update operation."""
@@ -237,6 +246,7 @@ class DynamiteModel:
         return dataclasses.replace(
             to_save,
             _serial=int(response["Attributes"]["_serial"]["N"]),
+            _sequence=int(response["Attributes"]["_sequence"]["N"]),
         )
 
     def _base_delete(

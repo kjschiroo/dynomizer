@@ -36,14 +36,14 @@ class DemoClass(dynamizer.DynamiteModel):
         return "/static"
 
     @classmethod
-    def load(cls, foobar: str):
+    def load(cls, foobar: str) -> "DemoClass":
         """Save the record."""
         client = boto3.client("dynamodb", region_name="us-east-1")
         return cls._base_load(
             client, "my-table-name", f"hash-key/{foobar}", "/range-key"
         )
 
-    def save(self):
+    def save(self) -> "DemoClass":
         """Save the record."""
         client = boto3.client("dynamodb", region_name="us-east-1")
         return self._base_save(client, "my-table-name")
@@ -82,3 +82,6 @@ def test_from_yaml():
         assert loaded is not None
         resaved = loaded.save()
         assert len({new_obj._serial, loaded._serial, resaved._serial}) == 3
+        assert new_obj._sequence is None
+        assert loaded._sequence == 1
+        assert resaved._sequence == 2
