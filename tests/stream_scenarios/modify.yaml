@@ -1,0 +1,51 @@
+change_record:
+  eventID: 99b467ba77cfbcdf71bd6440df149e43
+  eventName: MODIFY
+  eventVersion: '1.1'
+  eventSource: aws:dynamodb
+  awsRegion: us-east-2
+  dynamodb:
+    ApproximateCreationDateTime: 1691126174
+    Keys:
+      hash_key:
+        S: bob/hash_key
+      range_key:
+        S: bob/range_key
+    NewImage:
+      value:
+        S: foobar
+      created_at:
+        S: '2023-08-04T05:16:14.199960+00:00'
+      updated_at:
+        S: '2023-09-04T05:16:14.199960+00:00'
+      _serial:
+        N: '14323'
+      _sequence:
+        N: '2'
+    OldImage:
+      value:
+        S: fizzbuzz
+      created_at:
+        S: '2023-08-04T05:16:14.199960+00:00'
+      updated_at:
+        S: '2023-08-06T05:16:14.199960+00:00'
+      _serial:
+        N: '1'
+      _sequence:
+        N: '1'
+    SequenceNumber: '1470586100000000023195144671'
+    SizeBytes: 123
+    StreamViewType: NEW_AND_OLD_IMAGES
+
+expected:
+  model_class: Bob
+  type: MODIFY
+  new:
+    value: foobar
+    created_at: 2023-08-04T05:16:14.199960+00:00
+    updated_at: 2023-09-04T05:16:14.199960+00:00
+  old:
+    value: fizzbuzz
+    created_at: 2023-08-04T05:16:14.199960+00:00
+    updated_at: 2023-08-06T05:16:14.199960+00:00
+  timestamp: 2023-08-04T05:16:14+00:00
