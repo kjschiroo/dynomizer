@@ -4,8 +4,18 @@ import pathlib
 import pytest
 import yaml
 
+from dynamizer import errors
 from dynamizer import _stream
 from dynamizer import _models
+
+
+@dataclasses.dataclass(frozen=True)
+class Poisoned(_models.DynamiteModel):
+    value: str
+
+    @property
+    def hash_key(self) -> str:
+        raise ValueError("This class is poisoned.")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -67,7 +77,7 @@ def test_stream_scenarios(scenario_file: pathlib.Path):
 
 def test_non_existent_model():
     """Should raise a ValueError if the model class cannot be identified."""
-    with pytest.raises(ValueError):
+    with pytest.raises(errors.ModelNotFoundError):
         _stream.StreamedChange.from_change_record(
             {
                 "dynamodb": {
@@ -85,7 +95,7 @@ def test_non_existent_model():
 
 def test_bad_stream_view_type():
     """Should raise a ValueError if the stream view type is not NEW_AND_OLD_IMAGES."""
-    with pytest.raises(ValueError):
+    with pytest.raises(errors.UnsupportedStreamModeError):
         _stream.StreamedChange.from_change_record(
             {"dynamodb": {"StreamViewType": "NEW_IMAGE"}}
         )

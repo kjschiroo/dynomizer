@@ -4,6 +4,7 @@ import enum
 import typing
 
 
+from . import errors
 from . import _models
 
 
@@ -22,13 +23,18 @@ def _identify_model_class(
     for cls in candidates:
         obj = cls.inflate(image)
         for key in ("hash_key", "range_key"):
-            key_getter = getattr(obj, key, lambda: None)
-            key_val = key_getter() if callable(key_getter) else key_getter
+            try:
+                key_getter = getattr(obj, key, lambda: None)
+                key_val = key_getter() if callable(key_getter) else key_getter
+            except:
+                # We don't want to have a poisoned class break
+                # the whole thing.
+                break
             if key_val is None or keys[key]["S"] != key_val:
                 break
         else:
             return cls
-    raise ValueError("Could not identify the model class of the image.")
+    raise errors.ModelNotFoundError("Could not identify the model class of the image.")
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True)
@@ -57,7 +63,7 @@ class StreamedChange:
         """
         stream_record = record["dynamodb"]
         if stream_record["StreamViewType"] != "NEW_AND_OLD_IMAGES":
-            raise ValueError(
+            raise errors.UnsupportedStreamModeError(
                 "StreamedChange requires NEW_AND_OLD_IMAGES stream view type but got "
                 f"{stream_record['StreamViewType']}. This can be set when creating the "
                 "dynamodb table change stream."
