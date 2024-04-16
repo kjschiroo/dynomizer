@@ -35,10 +35,10 @@ def _find_coder(
     field: dataclasses.Field, coders: dict
 ) -> typing.Optional[typing.Callable]:
     """Find an encoder for the type of the given field."""
-    if field.type in coders:
-        return coders[field.type]
-    base_type = typing.get_origin(field.type)
-    if base_type is typing.Union and type(None) in typing.get_args(field.type):
+    type_ = (typing.get_origin(field.type) or field.type)
+    if type_ in coders:
+        return coders[type_]
+    if type_ is typing.Union and type(None) in typing.get_args(field.type):
         return coders[typing.get_args(field.type)[0]]
     return None
 

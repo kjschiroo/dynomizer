@@ -18,6 +18,8 @@ class DemoClass(dynamizer.DynamiteModel):
     foobar: str
     barfoo: typing.Optional[str] = None
     some_int: typing.Optional[int] = None
+    some_list: typing.List[str] = dataclasses.field(default_factory=list)
+    some_dict: typing.Dict[str, str] = dataclasses.field(default_factory=dict)
 
     @property
     def hash_key(self) -> str:
@@ -40,7 +42,7 @@ class DemoClass(dynamizer.DynamiteModel):
 
 def test_optional_but_set_values():
     """Optional values that are set should be tolerated without error."""
-    demo = DemoClass("my-string", barfoo="my-other-string", some_int=1)
+    demo = DemoClass("my-string", barfoo="my-other-string", some_int=1, some_dict={"foo": "bar"})
 
     result = DemoClass.inflate(demo.deflate())
 
@@ -92,6 +94,8 @@ def test_demo_class_inflate():
         "foobar": {"S": "fizuzz"},
         "created_at": {"S": "2022-06-28T03:08:00+00:00"},
         "updated_at": {"S": "2023-06-28T03:08:00+00:00"},
+        "some_list": {"S": "[]"},
+        "some_dict": {"S": "{}"},
     }
 
     record = DemoClass.inflate(record)
@@ -112,6 +116,8 @@ def test_demo_class_base_load_with_item():
             "foobar": {"S": "fizuzz"},
             "created_at": {"S": "2022-06-28T03:08:00+00:00"},
             "updated_at": {"S": "2023-06-28T03:08:00+00:00"},
+            "some_list": {"S": "[]"},
+            "some_dict": {"S": "{}"},
             "_sequence": {"N": "42"},
         }
     }
