@@ -42,7 +42,9 @@ class DemoClass(dynamizer.DynamiteModel):
 
 def test_optional_but_set_values():
     """Optional values that are set should be tolerated without error."""
-    demo = DemoClass("my-string", barfoo="my-other-string", some_int=1, some_dict={"foo": "bar"})
+    demo = DemoClass(
+        "my-string", barfoo="my-other-string", some_int=1, some_dict={"foo": "bar"}
+    )
 
     result = DemoClass.inflate(demo.deflate())
 

@@ -67,7 +67,7 @@ def _fill_table(table_data: dict):
 @contextlib.contextmanager
 def from_yaml(data: dict):
     """Mock the dynamodb environment with the given data."""
-    with moto.mock_dynamodb():
+    with moto.mock_aws():
         if isinstance(data, dict):
             data = [data]
         _create_tables(data)
